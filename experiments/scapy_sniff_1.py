@@ -1,8 +1,7 @@
 from collections import Counter
 from scapy.all import sniff, IP, IPv6, TCP, UDP, ARP, ICMP
-# from scapy.layers.inet import IP
-# from scapy.layers.inet import IPv6
-
+import numpy as np
+from netStat import netStat
 
 packet_counter = Counter()
 
@@ -12,8 +11,15 @@ def custom_action(packet):
     packet_counter.update([key])
     return f"Packet #{sum(packet_counter.values())}: {packet[0][1].src} ==> {packet[0][1].dst}"
 
+
+### Prep Feature extractor (AfterImage) ###
+maxHost = 100000000000
+maxSess = 100000000000
+nstat = netStat(np.nan, maxHost, maxSess)
+
+
 def custom_packet_parser(packet):
-    IPtype = None # undefined IPtype
+    IPtype = None  # undefined IPtype
     timestamp = packet.time
     framelen = len(packet)
 
@@ -28,7 +34,7 @@ def custom_packet_parser(packet):
     else:
         srcIP = ""
         dstIP = ""
-    
+
     if packet.haslayer(TCP):
         srcproto = str(packet[TCP].sport)
         dstproto = str(packet[TCP].dport)
@@ -38,11 +44,11 @@ def custom_packet_parser(packet):
     else:
         srcproto = ""
         dstproto = ""
-    
+
     srcMAC = packet.src
     dstMAC = packet.dst
-    
-    if srcproto == "" and dstproto == "": #not tcp or udp -> L2/L1 protocol
+
+    if srcproto == "" and dstproto == "":  # not tcp or udp -> L2/L1 protocol
         if packet.haslayer(ARP):
             srcproto = "arp"
             dstproto = "arp"
@@ -52,11 +58,23 @@ def custom_packet_parser(packet):
         elif packet.haslayer(ICMP):
             srcproto = "icmp"
             dstproto = "icmp"
-            IPType = 1
-        elif srcIP + srcproto + dstIP + dstproto == "": # other protocol
-            srcIP = packet.src # get src MAC
-            dstIP = packet.dst # get dst MAC
-    return f"{IPtype},{srcMAC},{dstMAC},{srcIP},{srcproto},{dstIP},{dstproto},{int(framelen)},{float(timestamp)}"
+            IPtype = 1
+        elif srcIP + srcproto + dstIP + dstproto == "":  # other protocol
+            srcIP = packet.src  # get src MAC
+            dstIP = packet.dst  # get dst MAC
+
+    vector = nstat.updateGetStats(
+        IPtype,
+        srcMAC,
+        dstMAC,
+        srcIP,
+        srcproto,
+        dstIP,
+        dstproto,
+        int(framelen),
+        float(timestamp),
+    )
+    return f"{vector},{IPtype},{srcMAC},{dstMAC},{srcIP},{srcproto},{dstIP},{dstproto},{int(framelen)},{float(timestamp)}"
 
 
 # sniff(filter="ip", prn=custom_action, count=10, iface="eno1")
