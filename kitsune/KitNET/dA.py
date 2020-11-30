@@ -25,7 +25,7 @@
 
 import sys
 import numpy
-from KitNET.utils import *
+from kitsune.KitNET.utils import *
 import json
 
 
