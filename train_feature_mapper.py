@@ -14,10 +14,10 @@ if __name__ == "__main__":
     packet_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.tsv"
     packet_limit = np.Inf
 
-    max_AE = 1000
-    FM_grace = 5000
-    AD_grace = 10000
-    threshold_grace = 20000
+    max_AE = 10
+    FM_grace = 10000
+    AD_grace = 20000
+    threshold_grace = 30000
 
     learning_rate = 0.1
     hidden_ratio = 0.75
@@ -28,6 +28,7 @@ if __name__ == "__main__":
     fm = CC.corClust(fe.get_num_features())
 
     # get next input vector
+    print("Feature Mapper training")
     curIndex = 0
     while True:
         x = fe.get_next_vector()
@@ -37,7 +38,6 @@ if __name__ == "__main__":
         # train feature mapper
         fm.update(x)
 
-        print("curIndex", curIndex)
         curIndex += 1
         if curIndex == FM_grace:
             break
@@ -72,6 +72,7 @@ if __name__ == "__main__":
 
     outputLayer = AE.dA(params)
 
+    print("Anomaly Detector training")
     # put input vector into feature mapper to train it
     while True:
         x = fe.get_next_vector()
@@ -85,11 +86,12 @@ if __name__ == "__main__":
             S_l1[a] = ensembleLayers[a].train(xi)
 
         outputLayer.train(S_l1)
-        print("curIndex", curIndex)
+
         curIndex += 1
         if curIndex == AD_grace:
             break
 
+    print("Prediction")
     # execute trained model on benign part of dataset
     RMSEs = []
     while True:
@@ -103,7 +105,7 @@ if __name__ == "__main__":
             xi = x[feature_map[a]]
             S_l1[a] = ensembleLayers[a].execute(xi)
         pred = outputLayer.execute(S_l1)
-        print(pred)
+
         RMSEs.append(pred)
 
         curIndex += 1
@@ -113,11 +115,12 @@ if __name__ == "__main__":
     # calculate threshold
     benignSample = np.log(RMSEs)
     logProbs = norm.logsf(np.log(RMSEs), np.mean(benignSample), np.std(benignSample))
-    print(logProbs)
+    print(np.min(logProbs), np.max(logProbs))
+    print(np.min(RMSEs), np.max(RMSEs))
 
     # plot the RMSE anomaly scores
     plt.figure(figsize=(10, 5))
-    fig = plt.scatter(range(len(RMSEs)), RMSEs, s=1.1, c=logProbs, cmap="RdYlGn",)
+    fig = plt.scatter(range(len(RMSEs)), RMSEs, s=1.1, c=logProbs, cmap="RdYlGn")
     plt.yscale("log")
     plt.title("Anomaly Scores from Kitsune's Execution Phase")
     plt.ylabel("RMSE (log scaled")
