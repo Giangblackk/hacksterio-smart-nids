@@ -6,9 +6,12 @@ import numpy as np
 from kitsune.FeatureExtractor import FE
 from kitsune.KitNET import corClust as CC
 from kitsune.netStat import netStat
+import h5py
+import json
 
-
-def feature_extract_and_mapping(pcap_file_list, num_clusters, packet_limit):
+def feature_extract_and_mapping(
+    pcap_file_list, num_clusters, packet_limit, out_dataset_file, out_mapper_file
+):
     # get number of features
     num_feats = len(netStat().getNetStatHeaders())
 
@@ -30,18 +33,29 @@ def feature_extract_and_mapping(pcap_file_list, num_clusters, packet_limit):
 
             feat_vecs.append(x)
 
-    feat_vecs = np.vstack(feat_vecs)
+    feat_vecs = np.vstack(feat_vecs).astype(np.float32)
     print(feat_vecs.shape)
+    print(feat_vecs.dtype)
+
+    with h5py.File(out_dataset_file, "w") as f:
+        f.create_dataset("dataset", data=feat_vecs)
 
     mapper = fm.cluster2(num_clusters)
+    with open(out_mapper_file, "w") as f:
+        json.dump(mapper, f)
+
     return mapper
 
 
 if __name__ == "__main__":
     _pcap_files = ["capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.tsv"]
     _num_cluster = 10
-    _limit = 100
-    _mapper = feature_extract_and_mapping(_pcap_files, _num_cluster, _limit)
+    _limit = np.Inf
+    _dataset_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.h5"
+    _mapper_file = "mapper.json"
+    _mapper = feature_extract_and_mapping(
+        _pcap_files, _num_cluster, _limit, _dataset_file, _mapper_file
+    )
     print(_mapper)
 
 """
