@@ -11,7 +11,7 @@ import tensorflow.compat.v1 as tf
 from tensorflow import keras
 
 
-def create_auto_encoder(input_size, beta, activation="relu"):
+def create_auto_encoder(input_size, beta, activation="relu", name=None):
     hidden_layer_size = math.ceil(beta * input_size)
     seq = keras.models.Sequential(
         [
@@ -21,7 +21,8 @@ def create_auto_encoder(input_size, beta, activation="relu"):
             keras.layers.Conv2D(
                 filters=input_size, kernel_size=1, activation=activation
             ),
-        ]
+        ],
+        name=name,
     )
     return seq
 
@@ -55,8 +56,12 @@ if __name__ == "__main__":
         print(mapper_dataset.shape)
 
         # create models based on feature mapper
-        model_input = keras.Input(shape=(1, 1, len(mapper)), name=f"input_{index}")
-        model_seq = create_auto_encoder(len(mapper), 0.75)
+        model_input = keras.Input(
+            shape=(1, 1, len(mapper)), name="input_".format(index)
+        )
+        model_seq = create_auto_encoder(
+            len(mapper), 0.75, name="ae_ensemble_{}".format(index)
+        )
 
         model_output = model_seq(model_input)
 
@@ -66,7 +71,9 @@ if __name__ == "__main__":
         print(model.outputs)
 
         # train model
-        logdir = "logs/ensemble_model_{}/".format(index) + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        logdir = "logs/ensemble_model_{}/".format(index) + datetime.now().strftime(
+            "%Y-%m-%d_%H-%M-%S"
+        )
 
         tensorboard_callback = keras.callbacks.TensorBoard(
             log_dir=logdir, histogram_freq=1, write_images=True
@@ -94,13 +101,56 @@ if __name__ == "__main__":
         reconstructed_dataset.append(model.predict(mapper_dataset))
 
         # predict on input dataset as input for output model
+        # clean session for next training
         keras.backend.clear_session()
-    
+
     # concat reconstructed outputs
+    reconstructed_dataset = np.concatenate(reconstructed_dataset, axis=-1)
+    print(reconstructed_dataset.shape)
 
     # create output model and train on reconstructed outputs
     output_model_len = sum(map(lambda x: len(x), feature_mapper))
     print("output_model_len:", output_model_len)
+
+    # create models based on feature mapper
+    out_model_input = keras.Input(shape=(1, 1, output_model_len), name="input_concat")
+
+    out_model_seq = create_auto_encoder(output_model_len, 0.5, name="ae_output")
+
+    model_output = out_model_seq(out_model_input)
+
+    out_model = keras.Model(out_model_input, model_output)
+
+    out_model.summary()
+    print(out_model.outputs)
+
+    # train model
+    logdir = "logs/output_model/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    tensorboard_callback = keras.callbacks.TensorBoard(
+        log_dir=logdir, histogram_freq=1, write_images=True
+    )
+
+    out_model.compile(
+        optimizer=tf.keras.optimizers.Adam(),
+        # loss="binary_crossentropy",
+        loss="mse",
+        metrics=[keras.metrics.RootMeanSquaredError(name="rmse")],
+    )
+
+    out_model.fit(
+        reconstructed_dataset,
+        reconstructed_dataset,
+        shuffle=True,
+        epochs=n_epoches,
+        batch_size=batch_size,
+        validation_split=0.2,
+        callbacks=[tensorboard_callback,],
+    )
+    os.makedirs("models/output_model/", exist_ok=True)
+    out_model.save("models/output_model/output_model.h5")
+
+    keras.backend.clear_session()
 
     # tf_session = keras.backend.get_session()
     # # write out tensorflow checkpoint & meta graph
