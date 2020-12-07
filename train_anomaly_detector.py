@@ -40,6 +40,11 @@ if __name__ == "__main__":
     dataset_max = np.max(numpy_dataset, axis=0)
     dataset_min = np.min(numpy_dataset, axis=0)
 
+    # save dataset max, and min
+    dataset_norm_file = "norm.json"
+    with open(dataset_norm_file, "w") as f:
+        json.dump({"max": dataset_max.tolist(), "min": dataset_min.tolist()}, f)
+
     numpy_dataset = (numpy_dataset - dataset_min) / (1e-10 + dataset_max - dataset_min)
 
     mapper_file = "mapper.json"
