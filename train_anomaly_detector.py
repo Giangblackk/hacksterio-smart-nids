@@ -1,5 +1,6 @@
 import os
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]="true"
+
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 import json
 from datetime import datetime
@@ -31,8 +32,8 @@ class EmsembleModel(keras.Model):
 
 
 if __name__ == "__main__":
-    batch_size = 100
-    n_epoches = 100
+    batch_size = 512
+    n_epoches = 1000
     # load dataset
     dataset_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.h5"
     dataset = keras.utils.HDF5Matrix(dataset_file, "dataset")
@@ -53,7 +54,9 @@ if __name__ == "__main__":
     # create models based on feature mapper
     first_mapper = mapper[0]
     first_mapper_dataset = numpy_dataset[:, np.array(first_mapper)]
-    first_mapper_dataset = np.reshape(first_mapper_dataset, (-1, 1, 1, len(first_mapper)))
+    first_mapper_dataset = np.reshape(
+        first_mapper_dataset, (-1, 1, 1, len(first_mapper))
+    )
 
     print(first_mapper_dataset.shape)
 
@@ -65,13 +68,15 @@ if __name__ == "__main__":
     print(first_model.outputs)
 
     logdir = "logs/first_model/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+    tensorboard_callback = keras.callbacks.TensorBoard(
+        log_dir=logdir, histogram_freq=1, write_images=True
+    )
 
     first_model.compile(
         optimizer=tf.keras.optimizers.Adam(),
-        # loss='binary_crossentropy',
-        loss="mse",
-        metrics=[keras.metrics.RootMeanSquaredError(name='my_rmse')],
+        loss="binary_crossentropy",
+        # loss="mse",
+        metrics=[keras.metrics.RootMeanSquaredError(name="rmse")],
     )
 
     first_model.fit(
@@ -80,14 +85,15 @@ if __name__ == "__main__":
         shuffle=True,
         epochs=n_epoches,
         batch_size=batch_size,
-        callbacks=[tensorboard_callback],
+        validation_split=0.2,
+        callbacks=[tensorboard_callback,],
     )
 
     # first_model.save("first.h5") # cannot save Model Subclasses to .h5
     tf_session = keras.backend.get_session()
     # write out tensorflow checkpoint & meta graph
     saver = tf.train.Saver()
-    save_path = saver.save(tf_session, "first_model/first_model.ckpt")
+    save_path = saver.save(tf_session, "models/first_model/first_model.ckpt")
 
     # train each ensemble models and save to files
     # train output model and save to file
