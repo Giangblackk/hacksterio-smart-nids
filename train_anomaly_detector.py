@@ -11,24 +11,19 @@ import tensorflow.compat.v1 as tf
 from tensorflow import keras
 
 
-class EmsembleModel(keras.Model):
-    def __init__(self, input_size, beta):
-        super(EmsembleModel, self).__init__()
-        self.input_size = input_size
-        self.hidden_layer_size = math.ceil(beta * input_size)
-        self.seq = keras.models.Sequential(
-            [
-                keras.layers.Conv2D(
-                    filters=self.hidden_layer_size, kernel_size=1, activation="relu"
-                ),
-                keras.layers.Conv2D(
-                    filters=self.input_size, kernel_size=1, activation="relu"
-                ),
-            ]
-        )
-
-    def call(self, x):
-        return self.seq(x)
+def create_auto_encoder(input_size, beta, activation="relu"):
+    hidden_layer_size = math.ceil(beta * input_size)
+    seq = keras.models.Sequential(
+        [
+            keras.layers.Conv2D(
+                filters=hidden_layer_size, kernel_size=1, activation=activation
+            ),
+            keras.layers.Conv2D(
+                filters=input_size, kernel_size=1, activation=activation
+            ),
+        ]
+    )
+    return seq
 
 
 if __name__ == "__main__":
@@ -61,9 +56,11 @@ if __name__ == "__main__":
     print(first_mapper_dataset.shape)
 
     first_input = keras.Input(shape=(1, 1, len(first_mapper)))
-    first_model = keras.Model(
-        first_input, EmsembleModel(len(first_mapper), 0.75)(first_input)
-    )
+    first_seq = create_auto_encoder(len(first_mapper), 0.75)
+    first_output = first_seq(first_input)
+
+    first_model = keras.Model(first_input, first_output)
+
     first_model.summary()
     print(first_model.outputs)
 
@@ -89,7 +86,9 @@ if __name__ == "__main__":
         callbacks=[tensorboard_callback,],
     )
 
-    # first_model.save("first.h5") # cannot save Model Subclasses to .h5
+    first_model.save(
+        "models/first_model/first.h5"
+    )  # cannot save Model Subclasses to .h5, use function instead
     tf_session = keras.backend.get_session()
     # write out tensorflow checkpoint & meta graph
     saver = tf.train.Saver()
