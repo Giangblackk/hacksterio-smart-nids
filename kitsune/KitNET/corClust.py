@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.cluster.hierarchy import linkage, fcluster, to_tree
+from sklearn.cluster import AgglomerativeClustering
 
 # A helper class for KitNET which performs a correlation-based incremental clustering of the dimensions in X
 # n: the number of dimensions in the dataset
@@ -48,6 +49,15 @@ class corClust:
         if maxClust > self.n:
             maxClust = self.n
         map = self.__breakClust__(to_tree(Z), maxClust)
+        return map
+
+    def cluster2(self, numClust):
+        D = self.corrDist()
+
+        cluster = AgglomerativeClustering(n_clusters=numClust, affinity='euclidean', linkage='single')
+        cluster.fit(D)
+        labels = cluster.labels_
+        map = [np.argwhere(labels == i).flatten().tolist() for i in range(numClust)]
         return map
 
     # a recursive helper function which breaks down the dendrogram branches until all clusters have no more than maxClust elements
