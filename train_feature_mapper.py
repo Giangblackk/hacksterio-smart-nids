@@ -5,10 +5,46 @@
 import numpy as np
 from kitsune.FeatureExtractor import FE
 from kitsune.KitNET import corClust as CC
-from kitsune.KitNET import dA as AE
-from scipy.stats import norm
-from matplotlib import pyplot as plt
+from kitsune.netStat import netStat
 
+
+def feature_extract_and_mapping(pcap_file_list, num_clusters, packet_limit):
+    # get number of features
+    num_feats = len(netStat().getNetStatHeaders())
+
+    # feature mapper object
+    fm = CC.corClust(num_feats)
+
+    feat_vecs = []
+
+    for pcap_file in pcap_file_list:
+        fe = FE(pcap_file, limit=packet_limit)
+
+        while True:
+            # extract next feature vector
+            x = fe.get_next_vector()
+            if len(x) == 0:
+                break
+
+            fm.update(x)
+
+            feat_vecs.append(x)
+
+    feat_vecs = np.vstack(feat_vecs)
+    print(feat_vecs.shape)
+
+    mapper = fm.cluster2(num_clusters)
+    return mapper
+
+
+if __name__ == "__main__":
+    _pcap_files = ["capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.tsv"]
+    _num_cluster = 10
+    _limit = 100
+    _mapper = feature_extract_and_mapping(_pcap_files, _num_cluster, _limit)
+    print(_mapper)
+
+"""
 if __name__ == "__main__":
     # load benign pcap file
     packet_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.tsv"
@@ -46,3 +82,4 @@ if __name__ == "__main__":
     feature_map = fm.cluster2(num_clusters)
 
     print(feature_map)
+"""
