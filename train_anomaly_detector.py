@@ -33,6 +33,7 @@ if __name__ == "__main__":
     # load dataset
     dataset_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.h5"
     dataset = keras.utils.HDF5Matrix(dataset_file, "dataset")
+    trained_models_info_file = "trained_models_info.json"
 
     numpy_dataset = dataset.data[...]
 
@@ -47,7 +48,7 @@ if __name__ == "__main__":
         feature_mapper = json.load(f)
     print(feature_mapper)
 
-    ensemble_models = []
+    trained_models_info = {"ensembles": [], "output": ""}
     reconstructed_dataset = []
     for index, mapper in enumerate(feature_mapper):
         # extract dataset corresonding to mapper
@@ -57,10 +58,10 @@ if __name__ == "__main__":
 
         # create models based on feature mapper
         model_input = keras.Input(
-            shape=(1, 1, len(mapper)), name="input_".format(index)
+            shape=(1, 1, len(mapper)), name="input{}".format(index)
         )
         model_seq = create_auto_encoder(
-            len(mapper), 0.75, name="ae_ensemble_{}".format(index)
+            len(mapper), 0.75, name="ae_ensemble{}".format(index)
         )
 
         model_output = model_seq(model_input)
@@ -95,8 +96,11 @@ if __name__ == "__main__":
             validation_split=0.2,
             callbacks=[tensorboard_callback,],
         )
-        os.makedirs("models/ensemble_model_{0}/".format(index), exist_ok=True)
-        model.save("models/ensemble_model_{0}/model_{0}.h5".format(index))
+        saved_model_dir = "models/ensemble_model_{0}/".format(index)
+        os.makedirs(saved_model_dir, exist_ok=True)
+        saved_model_path = os.path.join(saved_model_dir, "model_{0}.h5".format(index))
+        model.save(saved_model_path)
+        trained_models_info["ensembles"].append(saved_model_path)
 
         reconstructed_dataset.append(model.predict(mapper_dataset))
 
@@ -147,10 +151,17 @@ if __name__ == "__main__":
         validation_split=0.2,
         callbacks=[tensorboard_callback,],
     )
-    os.makedirs("models/output_model/", exist_ok=True)
-    out_model.save("models/output_model/output_model.h5")
+    saved_model_dir = "models/output_model/"
+    os.makedirs(saved_model_dir, exist_ok=True)
+    saved_model_path = os.path.join(saved_model_dir, "output_model.h5")
+    out_model.save(saved_model_path)
+
+    trained_models_info["output"] = saved_model_path
 
     keras.backend.clear_session()
+
+    with open(trained_models_info_file, "w") as f:
+        json.dump(trained_models_info, f)
 
     # tf_session = keras.backend.get_session()
     # # write out tensorflow checkpoint & meta graph
