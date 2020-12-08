@@ -4,10 +4,22 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 import json
 import tensorflow.compat.v1 as tf
 from tensorflow import keras
+import argparse
 
-if __name__ == "__main__":
-    # load trained model in h5
-    trained_models_info_file = "trained_models_info.json"
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="merge mmodels into single one")
+    parser.add_argument(
+        "-i",
+        "--trained-models-info",
+        default="trained_models_info.json",
+        help="Information of trained model in json format",
+    )
+    args = parser.parse_args()
+    return args
+
+
+def merge_models(trained_models_info_file):
     with open(trained_models_info_file, "r") as f:
         trained_models_info = json.load(f)
 
@@ -48,3 +60,9 @@ if __name__ == "__main__":
     saver = tf.train.Saver()
     save_path = saver.save(tf_session, "models/total2/total.ckpt")
 
+
+
+if __name__ == "__main__":
+    _args = parse_args()
+    _trained_models_info_file = _args.trained_models_info
+    merge_models(_trained_models_info_file)
