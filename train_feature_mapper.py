@@ -8,6 +8,8 @@ from kitsune.KitNET import corClust as CC
 from kitsune.netStat import netStat
 import h5py
 import json
+import argparse
+
 
 def feature_extract_and_mapping(
     pcap_file_list, num_clusters, packet_limit, out_dataset_file, out_mapper_file
@@ -47,53 +49,27 @@ def feature_extract_and_mapping(
     return mapper
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Train feature mapper with list of pcap files"
+    )
+    parser.add_argument("-p", "--pcap-list", nargs="+", help="Pcap file list", required=True)
+    parser.add_argument("-d", "--dataset-file", help="Path to output converted feature vector dataset")
+    parser.add_argument("-n", "--num-cluster", default=5, help="Number of cluster to map features")
+    parser.add_argument("-m", "--mapper-file", default="mapper.json", help="Path to output feature mapper file")
+    parser.add_argument)"-l", "--limit", default=np.Inf, type=int, help="Limit number of pakcet extracted from each file")
+
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
-    _pcap_files = ["capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.tsv"]
-    _num_cluster = 10
+    _args = parse_args()
+    _pcap_files = _args.pcap_list
+    _num_cluster = _args.num_cluster
     _limit = np.Inf
-    _dataset_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.h5"
-    _mapper_file = "mapper.json"
+    _dataset_file = _args.dataset_file
+    _mapper_file = _args.mapper_file
     _mapper = feature_extract_and_mapping(
         _pcap_files, _num_cluster, _limit, _dataset_file, _mapper_file
     )
-    print(_mapper)
-
-"""
-if __name__ == "__main__":
-    # load benign pcap file
-    packet_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.tsv"
-    packet_limit = np.Inf
-
-    num_clusters = 10
-    FM_grace = 10000
-    AD_grace = 20000
-    threshold_grace = 30000
-
-    learning_rate = 0.1
-    hidden_ratio = 0.75
-
-    # create feature extractor to get next input vector
-    fe = FE(packet_file, limit=packet_limit)
-
-    fm = CC.corClust(fe.get_num_features())
-
-    # get next input vector
-    print("Feature Mapper training")
-    curIndex = 0
-    while True:
-        x = fe.get_next_vector()
-        if len(x) == 0:
-            break
-
-        # train feature mapper
-        fm.update(x)
-
-        curIndex += 1
-        if curIndex == FM_grace:
-            break
-
-    # get trained feature mapper
-    feature_map = fm.cluster2(num_clusters)
-
-    print(feature_map)
-"""

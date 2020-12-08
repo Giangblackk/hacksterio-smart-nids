@@ -1,7 +1,9 @@
 import os
+from pydoc import pager
 
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
+import argparse
 import json
 from datetime import datetime
 import math
@@ -27,13 +29,15 @@ def create_auto_encoder(input_size, beta, activation="relu", name=None):
     return seq
 
 
-if __name__ == "__main__":
-    batch_size = 512
-    n_epoches = 10
-    # load dataset
-    dataset_file = "capEC2AMAZ-O4EL3NG-172.31.69.26a.pcap.h5"
+def train_anomaly_detctor(
+    dataset_file,
+    batch_size=512,
+    n_epoches=1000,
+    trained_models_info_file="trained_models_info.json",
+    dataset_norm_file="norm.json",
+    mapper_file="mapper.json",
+):
     dataset = keras.utils.HDF5Matrix(dataset_file, "dataset")
-    trained_models_info_file = "trained_models_info.json"
 
     numpy_dataset = dataset.data[...]
 
@@ -41,13 +45,11 @@ if __name__ == "__main__":
     dataset_min = np.min(numpy_dataset, axis=0)
 
     # save dataset max, and min
-    dataset_norm_file = "norm.json"
+
     with open(dataset_norm_file, "w") as f:
         json.dump({"max": dataset_max.tolist(), "min": dataset_min.tolist()}, f)
 
     numpy_dataset = (numpy_dataset - dataset_min) / (1e-10 + dataset_max - dataset_min)
-
-    mapper_file = "mapper.json"
 
     with open(mapper_file, "r") as f:
         feature_mapper = json.load(f)
@@ -168,11 +170,55 @@ if __name__ == "__main__":
     with open(trained_models_info_file, "w") as f:
         json.dump(trained_models_info, f)
 
-    # tf_session = keras.backend.get_session()
-    # # write out tensorflow checkpoint & meta graph
-    # saver = tf.train.Saver()
-    # save_path = saver.save(tf_session, "models/first_model/first_model.ckpt")
 
-    # train each ensemble models and save to files
-    # train output model and save to file
-    # merge to single model file
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train anomaly detector")
+    parser.add_argument("-d", "--dataset-file", type=str, help="Input dataset file", required=True)
+    parser.add_argument(
+        "-e", "--num-epoch", type=int, default=1000, help="Number of training epoch"
+    )
+    parser.add_argument(
+        "-b", "--batch-size", type=int, default=512, help="Training batch size"
+    )
+    parser.add_argument(
+        "-i",
+        "--trained-model-info",
+        type=str,
+        default="trained_models_info.json",
+        help="Output to file store location of trained models",
+    )
+    parser.add_argument(
+        "-n",
+        "--dataset-norm",
+        type=str,
+        default="norm.json",
+        help="Output to dataset normalization info",
+    )
+    parser.add_argument(
+        "-m",
+        "--mapper-file",
+        type=str,
+        default="mapper.json",
+        help="Input feature mapper file",
+    )
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    _args = parse_args()
+    _dataset_file = _args.dataset_file
+    _batch_size = _args.batch_size
+    _n_epoches = _args.num_epoch
+    _trained_models_info_file = _args.trained_model_info
+    _dataset_norm_file = _args.dataset_norm
+    _mapper_file = _args.mapper_file
+
+    train_anomaly_detctor(
+        _dataset_file,
+        batch_size=_batch_size,
+        n_epoches=_n_epoches,
+        trained_models_info_file=_trained_models_info_file,
+        dataset_norm_file=_dataset_norm_file,
+        mapper_file=_mapper_file,
+    )
