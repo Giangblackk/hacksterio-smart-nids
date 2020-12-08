@@ -1,6 +1,3 @@
-# run experiments
-sudo python -m experiments.scapy_sniff_1
-
 # example for freeze cpkt
 CUDA_VISIBLE_DEVICES=-1 python freeze_graph.py \
     --input_meta_graph models/total2/total.ckpt.meta \
